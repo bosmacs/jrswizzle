@@ -109,8 +109,34 @@
 }
 
 + (BOOL)jr_swizzleClassMethod:(SEL)origSel_ withClassMethod:(SEL)altSel_ error:(NSError**)error_ {
+#if OBJC_API_VERSION >= 2
+	Method origMethod = class_getClassMethod(self, origSel_);
+	if (!origMethod) {
+		SetNSError(error_, @"original class method %@ not found for class %@", NSStringFromSelector(origSel_), [self className]);
+		return NO;
+	}
+
+	Method altMethod = class_getClassMethod(self, altSel_);
+	if (!altMethod) {
+		SetNSError(error_, @"alternate class method %@ not found for class %@", NSStringFromSelector(altSel_), [self className]);
+		return NO;
+	}
+
+	class_addMethod(self,
+					origSel_,
+					class_getMethodImplementation(self, origSel_),
+					method_getTypeEncoding(origMethod));
+	class_addMethod(self,
+					altSel_,
+					class_getMethodImplementation(self, altSel_),
+					method_getTypeEncoding(altMethod));
+
+	method_exchangeImplementations(class_getClassMethod(self, origSel_), class_getClassMethod(self, altSel_));
+	return YES;
+#else
 	assert(0);
 	return NO;
+#endif
 }
 
 @end
